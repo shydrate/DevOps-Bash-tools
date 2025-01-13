@@ -21,7 +21,11 @@ endif
 # would fail bootstrapping on Alpine
 #SHELL := /usr/bin/env bash
 
-export PATH := $(PATH):/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin
+export PATH := $(PATH):/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/opt/homebrew/bin
+
+# Python breaking backwards compatibility as usual - set this to use historic behaviour and treat the user like an adult
+# this way if the install is run for --user instead of in a virtualenv it'll still work
+export PIP_BREAK_SYSTEM_PACKAGES := 1
 
 DOCKER_IMAGE := harisekhon/github
 
@@ -31,7 +35,17 @@ else
 	INSIDE_DOCKER :=
 endif
 
-CODE_FILES := $(shell if type git >/dev/null 2>&1; then git ls-files | while read line; do test -f "$$line" || continue; echo "$$line"; done; fi)
+CODE_FILES := $(shell \
+	if type git >/dev/null 2>&1; then \
+		git ls-files | \
+		while read filepath; do \
+			test -f "$$filepath" || continue; \
+			test -d "$$filepath" & continue; \
+			test -L "$$filepath" & continue; \
+			echo "$$filepath"; \
+		done; \
+	fi \
+)
 
 CPANM := cpanm
 export PIP := pip3
@@ -235,6 +249,7 @@ quick:
 
 .PHONY: git
 git:
+	@# not using install_packages_if_absent.sh as we don't need a package on Mac, it comes with XCode
 	type git 2>/dev/null || $(BASH_TOOLS)/packages/install_packages.sh git
 
 .PHONY: submodules
@@ -261,8 +276,19 @@ btest: bash-test
 bash-test:
 	$(BASH_TOOLS)/checks/check_all.sh
 
+.PHONY: test
+#test: precommit
+test: bash-test
+	@:
+
+precommit: pre-commit
+	@:
+
+pre-commit:
+	pre-commit run --all-files
+
 .PHONY: push
-push:
+push: test
 	git push
 
 .PHONY: system-packages
@@ -271,7 +297,9 @@ system-packages: submodules
 	if [ -x /usr/bin/apt-get ]; then $(MAKE) apt-packages; fi
 	@# /usr/bin/yum is a symlink to dnf-3 on newer RHEL systems, so fails -x /usr/bin/yum
 	if [ -e /usr/bin/yum ];     then $(MAKE) yum-packages; fi
-	if [ -x /usr/local/bin/brew -a `uname` = Darwin ]; then $(MAKE) homebrew-packages; fi
+	@# /usr/local/bin/brew    on older macOS
+	@# /opt/homebrew/bin/brew on newer macOS
+	if which -a brew && [ `uname` = Darwin ]; then $(MAKE) homebrew-packages; fi
 
 .PHONY: system-packages-perl
 system-packages-perl: system-packages
@@ -374,7 +402,7 @@ yum-packages:
 	if type -P amazon-linux-extras; then \
 		$(SUDO) amazon-linux-extras install epel -y; \
 	fi
-	$(BASH_TOOLS)/setup/install_epel_repo.sh
+	$(BASH_TOOLS)/install/install_epel_repo.sh
 
 	# installing packages individually to catch package install failure, otherwise yum succeeds even if it misses a package
 	for x in rpm-packages.txt rpm-packages-dev.txt; do \
@@ -447,12 +475,12 @@ yum-packages-remove:
 
 .PHONY: cpan
 cpan::
-	find . -maxdepth 3 -path '*/setup/cpan-requirements*.txt' | grep -v cpan-requirements-optional.txt | xargs $(BASH_TOOLS)/perl/perl_cpanm_install_if_absent.sh
+	find . -maxdepth 3 -path '*/setup/cpan-requirements*.txt' | grep -v cpan-requirements-optional.txt | xargs --no-run-if-empty "$(BASH_TOOLS)/perl/perl_cpanm_install_if_absent.sh"
 	@$(MAKE) cpan-optional
 
 .PHONY: cpan-optional
 cpan-optional::
-	find . -maxdepth 3 -path '*/setup/cpan-requirements-optional.txt' | NO_FAIL=1 xargs $(BASH_TOOLS)/perl/perl_cpanm_install_if_absent.sh
+	find . -maxdepth 3 -path '*/setup/cpan-requirements-optional.txt' | NO_FAIL=1 xargs --no-run-if-empty "$(BASH_TOOLS)/perl/perl_cpanm_install_if_absent.sh"
 
 .PHONY: gems
 gems:: gem
@@ -460,30 +488,30 @@ gems:: gem
 
 .PHONY: gem
 gem::
-	find . -maxdepth 3 -path '*/setup/gem-requirements.txt' | xargs $(BASH_TOOLS)/packages/ruby_gem_install_if_absent.sh
+	find . -maxdepth 3 -path '*/setup/gem-packages.txt' | xargs --no-run-if-empty "$(BASH_TOOLS)/packages/ruby_gem_install_if_absent.sh"
 	@$(MAKE) gem-optional
 
 .PHONY: gem-optional
 gem-optional::
-	find . -maxdepth 3 -path '*/setup/gem-requirements-optional.txt' | NO_FAIL=1 PIP=$(PIP) xargs $(BASH_TOOLS)/python/python_pip_install_if_absent.sh
+	find . -maxdepth 3 -path '*/setup/gem-packages-optional.txt' | NO_FAIL=1 PIP="$(PIP)" xargs --no-run-if-empty "$(BASH_TOOLS)/packages/ruby_gem_install_if_absent.sh"
 
 .PHONY: npm
 npm::
-	find . -maxdepth 3 -path '*/setup/npm-requirements.txt' -o -path '*/setup/npm-packages.txt' | $(BASH_TOOLS)/packages/nodejs_npm_install_if_absent.sh
+	find . -maxdepth 3 -path '*/setup/npm-requirements.txt' -o -path '*/setup/npm-packages.txt' | xargs --no-run-if-empty "$(BASH_TOOLS)/packages/nodejs_npm_install_if_absent.sh"
 	@$(MAKE) npm-optional
 
 .PHONY: npm-optional
 npm-optional::
-	find . -maxdepth 3 -path '*/setup/npm-requirements-optional.txt' | NO_FAIL=1 $(BASH_TOOLS)/packages/nodejs_npm_install_if_absent.sh
+	find . -maxdepth 3 -path '*/setup/npm-requirements-optional.txt' | NO_FAIL=1 xargs --no-run-if-empty "$(BASH_TOOLS)/packages/nodejs_npm_install_if_absent.sh"
 
 .PHONY: pip
 pip::
-	find . -maxdepth 3 -path '*/requirements.txt' | PIP=$(PIP) xargs $(BASH_TOOLS)/python/python_pip_install_if_absent.sh
+	find . -maxdepth 3 -path '*/requirements.txt' | PIP="$(PIP)" xargs --no-run-if-empty "$(BASH_TOOLS)/python/python_pip_install_if_absent.sh"
 	@$(MAKE) pip-optional
 
 .PHONY: pip-optional
 pip-optional::
-	find . -maxdepth 3 -path '*/requirements-optional.txt' | NO_FAIL=1 PIP=$(PIP) xargs $(BASH_TOOLS)/python/python_pip_install_if_absent.sh
+	find . -maxdepth 3 -path '*/requirements-optional.txt' | NO_FAIL=1 PIP="$(PIP)" xargs --no-run-if-empty "$(BASH_TOOLS)/python/python_pip_install_if_absent.sh"
 
 .PHONY: pip-user
 pip-user::
@@ -790,20 +818,32 @@ wc:
 	@printf 'of which not the following:\t'
 	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep -Ev -e '\.bash' \
 												-e lib/ \
+												-e install/ \
 												-e setup/ \
 												-e 'tests?/' \
 												-e vagrant/ \
 												| wc -l | sed 's/[[:space:]]//g'
 	@printf 'of which .bash*:\t\t'
-	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep '\.bash' | wc -l | sed 's/[[:space:]]//g'
+	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep -c '\.bash'
 	@printf 'of which lib/:\t\t\t'
-	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep lib/ | wc -l | sed 's/[[:space:]]//g'
+	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep -c lib/
+	@printf 'of which install/:\t\t'
+	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep -c install/
 	@printf 'of which setup/:\t\t'
-	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep setup/ | wc -l | sed 's/[[:space:]]//g'
+	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep -c setup/
 	@printf 'of which test(s)/:\t\t'
-	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep -Ee 'tests?/' | wc -l | sed 's/[[:space:]]//g'
+	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep -Eec 'tests?/'
 	@printf 'of which vagrant/:\t\t'
-	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep vagrant/ | wc -l | sed 's/[[:space:]]//g'
+	@tr ' ' '\n' <<< "$(CODE_FILES)" | grep -c vagrant/
+
+mdl:
+	@echo "Checking Markdown for issues"
+	@echo
+	@if .mdl.rb; then \
+		mdl -s .mdl.rb *.md; \
+	else \
+		mdl *.md; \
+	fi
 
 # finds .swp, would need to port out code lists
 #.PHONY: wcall
@@ -813,3 +853,13 @@ wc:
 #.PHONY: wcall
 #wcall:
 #	find . -type f -not -path '*.git*' -exec sed 's/#.*//;/^[[:space:]]*$$/d' {} \; | wc -l
+
+.PHONY: repos
+repos:
+	@if ! grep -q "OTHER_REPOS_START" README.md || \
+		! grep -q "OTHER_REPOS_END"   README.md || \
+		! grep -q "More Core Repos"   README.md; then \
+		echo "Adding More Core Repos section to README.md"; \
+		printf '\n## More Core Repos\n\n<!-- OTHER_REPOS_START -->\n\n<!-- OTHER_REPOS_END -->\n' >> README.md; \
+	fi; \
+	markdown_replace_repos.sh

@@ -37,7 +37,7 @@ Boots Concourse CI in Docker, and builds the current repo
 
     ${0##*/} down
 
-    ${0##*/} ui     - prints the Concourse URL and on Mac automatically opens in browser
+    ${0##*/} ui     - prints the Concourse URL and automatically opens in browser
 
 Idempotent, you can re-run this and continue from any stage
 
@@ -74,7 +74,7 @@ pipeline="${PWD##*/}"
 job="$pipeline/build"
 
 if ! type docker-compose &>/dev/null; then
-    "$srcdir/../setup/install_docker_compose.sh"
+    "$srcdir/../install/install_docker_compose.sh"
 fi
 
 action="${1:-up}"
@@ -99,9 +99,7 @@ elif [ "$action" = ui ]; then
     echo "Concourse user:     $CONCOURSE_USER"
     echo "Concourse password: $CONCOURSE_PASSWORD"
     echo
-    if is_mac; then
-        open "$CONCOURSE_URL"
-    fi
+    open "$CONCOURSE_URL"
     exit 0
 else
     docker-compose "$action" "$@"
@@ -133,7 +131,7 @@ timestamp "fly login:"
 "$srcdir/fly.sh" login -c "$CONCOURSE_URL" -u "$CONCOURSE_USER" -p "$CONCOURSE_PASSWORD"
 echo
 
-concourse_yml=".concourse_yml"
+concourse_yml=".concourse.yml"
 
 if ! [ -f "$concourse_yml" ]; then
     timestamp "Concourse configuration file '$concourse_yml' not found"

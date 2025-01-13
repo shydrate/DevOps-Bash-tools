@@ -38,6 +38,12 @@ github="${github:-$HOME/github}"
 
 # ============================================================================ #
 
+repaths(){
+    unset PATHS_SET
+    # shellcheck disable=SC1091
+    source "$bash_tools/.bash.d/paths.sh"
+}
+
 #export PATH="${PATH%%:~/github*}"
 add_PATH(){
     export PATH="$PATH:$1"
@@ -97,6 +103,8 @@ add_PATH "/usr/local/opt/python/libexec/bin"  # Mac brew installed Python, must 
 add_PATH "/opt/homebrew/bin/"  # on new M1 Macs
 add_PATH "$bash_tools"
 add_PATH ~/bin
+add_PATH ~/.local/bin
+add_PATH ~/venv/bin
 while read -r x; do
     # much less noisy to just just find the right dirs instead of testing lots of files
     #[ -d "$x" ] || continue
@@ -155,6 +163,16 @@ fi
 #    add_PATH /Applications/SnowSQL.app/Contents/MacOS
 #fi
 
+# so that you can open files in IntelliJ from the command line: idea <filename>
+if [ -d "/Applications/IntelliJ IDEA CE.app/Contents/MacOS" ]; then
+    add_PATH "/Applications/IntelliJ IDEA CE.app/Contents/MacOS"
+fi
+
+if [ -d "/Applications/Visual Studio Code.app" ]; then
+    # don't need this one as you can just 'code /path/to/filename' to open the file in VS Code
+    #add_PATH "/Applications/Visual Studio Code.app/Contents/MacOS"  # Electron IDE is here
+    add_PATH "/Applications/Visual Studio Code.app/Contents/Resources/app/bin"  # code CLI is here
+fi
 
 # ============================================================================ #
 #                                A n a c o n d a
@@ -193,13 +211,16 @@ fi
 
 # $github defined in aliases.sh
 # shellcheck disable=SC2154
-add_PATH "$github/bash-tools"
+add_PATH "$bash_tools"
 while read -r x; do
     add_PATH "$x"
-done < <(find "$github/bash-tools" -maxdepth 1 -type d)
+done < <(find "$bash_tools" -maxdepth 1 -type d)
 add_PATH "$github/go-tools"
+add_PATH "$github/go"
 add_PATH "$github/go-tools/bin"
+add_PATH "$github/go/bin"
 add_PATH "$github/perl-tools"
+add_PATH "$github/perl"
 add_PATH "$github/pytools"
 add_PATH "$github/tools"
 #add_PATH "$github/tool"
@@ -450,20 +471,27 @@ link_latest(){
 #export ACTIVATOR_HOME=/usr/local/activator-dist
 #add_PATH "$ACTIVATOR_HOME"
 
-# required complex logic in add_PATH
+# slows down new shells
 #dedupe_paths(){
-#    local PATH_tmp=""
+#    local var="${1:-PATH}"
+#    local path_tmp=""
 #    # <( ) only works in Bash, but breaks when sourced from sh
 #    # <( ) also ignores errors which don't get passed through the /dev/fd
 #    # while read -r path; do
 #    #done < <(tr ':' '\n' <<< "$PATH")
 #    local IFS=':'
-#    for path in $PATH; do
-#        add_PATH PATH_tmp "$path"
+#    for path in ${!var}; do
+#        if [[ "$path" =~ ^[[:space:]]*$ ]]; then
+#            continue
+#        fi
+#        if ! [[ "$path_tmp" =~ :$path(:|$) ]]; then
+#            path_tmp="$path_tmp:$path"
+#        fi
 #    done
-#    export PATH="$PATH_tmp"
+#    eval export "$var"="\"$path_tmp\""
 #}
 
+# call in z_final.sh
 #dedupe_paths
 
 export PATHS_SET=1

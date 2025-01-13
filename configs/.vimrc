@@ -13,6 +13,11 @@
 "
 " :source ~/.vimrc
 
+" if you cursor location and copy/paste register buffers are not saving
+" then ensure that your ~/.viminfo file is owned by your user:
+"
+"   sudo chown "$USER" ~/.viminfo
+
 syn on
 
 highlight StatusLine ctermfg=yellow ctermbg=darkgray
@@ -39,7 +44,7 @@ set ls=1    " laststatus - Status line 0=off, 1=multi-windows, 2=on
 set listchars=tab:>-,eol:$,trail:.,extends:# " changes the list characters, makes tabs appear as >---
 set ml      " modeline - respect the vim: stuff at the stop of files, often off for root
 set mls=15  " modelines - Controls how many lines to check for modeline, systems often set this to 0
-set nocp    " nocompatible
+"set nocp    " nocompatible
 set nofen   " nofoldenable
 set nohls   " nohlsearch
 set nojs    " nojoinspaces - only use 1 space even when J joining lines even when line ends in a special char
@@ -81,7 +86,7 @@ set formatoptions+=or
 "behave mswin
 be xterm
 
-:if has("gui_running")
+:if has('gui_running')
     "colorscheme slate
     colo slate
 :endif
@@ -138,6 +143,8 @@ Plugin 'terrastruct/d2-vim'
 Plugin 'tpope/vim-fugitive'
 Plugin 'tpope/vim-surround'
 Plugin 'tmux-plugins/vim-tmux'
+" https://github.com/motus/pig.vim
+"Bundle "motus/pig.vim"
 
 " comment at start of line instead of code indentation level
 " doesn't work: https://github.com/preservim/nerdcommenter/issues/467
@@ -171,12 +178,112 @@ call vundle#end()
 
 
 " ============================================================================ "
+"                           K e y b i n d i n g s
+" ============================================================================ "
+
+"nmap <silent> ;c :call Cformat() <CR>
+nmap <silent> ;a :,!anonymize.py -a <CR>
+nmap          ;A :,!hexanonymize.py --case --hex-only <CR>
+nmap <silent> ;b :!git blame "%"<CR>
+"nmap <silent> ;c :call ToggleComments()<CR>
+nmap <silent> ;c :,!center.py<CR>
+nmap <silent> ;e :,!center.py --space<CR>
+nmap <silent> ;C :,!center.py --unspace<CR>
+" parses current example line and passes as stdin to bash to quickly execute examples from code - see WriteRunLine() further down for example
+" messes up interactive vim (disables vim's arrow keys) - calling a terminal reset fixes it
+nmap <silent> ;E :call WriteRunLine()<CR> :!reset <CR><CR>
+nmap <silent> ;d :r !date '+\%F \%T \%z (\%a, \%d \%b \%Y)'<CR>kJ
+"nmap <silent> ;D :Done<CR>
+nmap <silent> ;D :%!decomment.sh "%" <CR>
+nmap          ;f :,!fold -s -w 120 \| sed 's/[[:space:]]*$//'<CR>
+"nmap <silent> ;h :call Hr()<CR>
+nmap <silent> ;h :Hr<CR>
+nmap          ;H :call WriteHelp()<CR>
+" this inserts Hr literally
+"imap <silent> <C-H> :Hr<CR>
+nmap <silent> ;I :PluginInstall<CR>
+nmap          ;i :! idea % <CR> :wq <CR>
+nmap <silent> ;j :JHr<CR>
+nmap          ;k :w<CR> :! check_kubernetes_yaml.sh "%" <CR>
+"nmap <silent> ;' :call Sq()<CR>
+" done automatically on write now
+"nmap <silent> ;' :call StripTrailingWhiteSpace()<CR>
+nmap <silent> ;' :w<CR> :!clear; git diff "%" <CR>
+nmap          ;m :w<CR> :call MarkdownIndex() <CR>
+nmap          ;n :w<CR> :n<CR>
+nmap          ;o :!cd "%:p:h" && git log -p "%:t" <CR>
+nmap          ;O :call ToggleGutter()<CR>
+nmap          ;p :prev<CR>
+"nmap          ;P :call TogglePaste()<CR>
+"should be the same thing according to :help pastetoggle but results in vim startup error 'Not an editor command'
+"pastetoggle P
+nmap          ;P :set paste!<CR>
+nmap          ;t :set list!<CR>
+nmap          ;q :q<CR>
+nmap          ;r :call WriteRun()<CR>
+nmap          ;R :call WriteRunDebug()<CR>
+"nmap          ;R :!run.sh %:p<CR>
+"nmap <silent> ;s :call ToggleSyntax()<CR>
+nmap <silent> ;s :,!sqlcase.pl<CR>
+"nmap          ;; :call HgGitU()<CR>
+" command not found
+"nmap          ;; :! . ~/.bashrc; gitu "%" <CR>
+nmap          ;; :w<CR> :call GitUpdateCommit() <CR>
+nmap          ;/ :w<CR> :call GitAddCommit() <CR>
+nmap          ;g :w<CR> :call GitStatus() <CR>
+nmap          ;G :w<CR> :call GitLogP() <CR>
+nmap          ;L :w<CR> :! lint.sh % <CR>
+nmap          ;. :w<CR> :call GitPull() <CR>
+nmap          ;[ :w<CR> :call GitPush() <CR>
+nmap          ;, :w<CR> :s/^/</ <CR> :s/$/>/ <CR>
+" write then grep all URLs that are not mine, followed by all URLs that are mine in reverse order to urlview
+" this is so that 3rd party URLs followed by my URLs from within the body of files get higher priority than my header links
+"nmap <silent> ;u :w<CR> :! bash -c 'grep -vi harisekhon "%" ; grep -i harisekhon "%" \| tail -r' \| urlview <CR> :<CR>
+nmap <silent> ;u :w<CR> :! bash -c '{ urlextract.sh "%" ; terraform_registry_url_extract.sh "%"; } \| terraform_registry_url_to_https.sh \| lines_to_end.sh harisekhon \| urlview' <CR> :<CR>
+" pass current line as stdin to urlview to quickly go to this url
+" messes up interactive vim (disables vim's arrow keys) - calling a terminal reset fixes it
+"nmap <silent> ;U :.w !urlview<CR><CR> :!reset<CR><CR>
+nmap <silent> ;U :.w !urlopen.sh<CR><CR>
+" breaks ;; nmap
+"nmap          ;\ :source ~/.vimrc<CR>
+"nmap          ;/ :source ~/.vimrc<CR>
+"nmap          ;v :source ~/.vimrc<CR>
+nmap          ;v :call SourceVimrc()<CR>
+nmap          ;V :call WriteRunVerbose()<CR>
+nmap          ;w :w<CR>
+"nmap          ;x :x<CR>
+nmap          ;y :w !pbcopy<CR><CR>
+nmap          ;z :call ToggleDebug()<CR>
+nmap          ;§ :call ToggleScrollLock()<CR>
+
+"noremap <silent> ,cc :<C-B>silent <C-E>s/^/<C-R>=escape(b:comment_char,'\/')<CR>/<CR>:nohlsearch<CR>
+"noremap <silent> ,cu :<C-B>silent <C-E>s/^\V<C-R>=escape(b:comment_char,'\/')<CR>//e<CR>:nohlsearch<CR>
+
+" reloading with these didn't fix above pipe disabling arrow keys but
+" adding a terminal reset after the pipe command did fix it
+"noremap <Up>    <Up>
+"noremap <Down>  <Down>
+"noremap <Left>  <Left>
+"noremap <Right> <Right>
+
+if has('autocmd')
+    au BufNew,BufRead *docker-compose.y*ml   nmap ;r :w<CR>:!clear; docker-compose -f "%" up<CR>
+endif
+
+if has('autocmd')
+    "au BufNew,BufRead **/haproxy-configs/*.cfg   nmap ;r :w<CR>:!clear; haproxy -f "%:p:h/10-global.cfg" -f "%:p:h/20-stats.cfg" -f "%"<CR>
+    au BufNew,BufRead **/haproxy-configs/*.cfg   nmap ;r :w<CR>:!clear; "%:p:h/run.sh" "%"<CR>
+    au BufNew,BufRead **/haproxy-configs/*.cfg   nmap ;R :w<CR>:!clear; DEBUG=1 "%:p:h/run.sh" "%"<CR>
+endif
+
+
+" ============================================================================ "
 "                               A u t o c m d
 " ============================================================================ "
 
 nmap ;l :echo "No linting defined for this filetype:" &filetype<CR>
 
-if has("autocmd")
+if has('autocmd')
 
     " re-open at last cursor line and center screen on the cursor line
     "au BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
@@ -208,14 +315,16 @@ if has("autocmd")
 
     au BufNewFile,BufRead LICENSE set tw=80
 
-    au BufRead,BufNewFile perl set ts=4 st=4 et
-    au BufRead,BufNewFile *.pl set ts=4 st=4 et
+    au BufRead,BufNewFile perl set ts=4 sts=4 et
+    au BufRead,BufNewFile *.pl set ts=4 sts=4 et
 
     "au BufNew,BufRead *.pp set syntax=conf
     " filetype is better than syntax since it figures out indentation and tab completion etc and the ruby is better than conf since it gives more syntax highlighting
     au BufNew,BufRead *.pp set filetype=ruby sts=2 sw=2 ts=2 et
 
-    au BufNew,BufRead *.tf set sts=2 sw=2 ts=2 et filetype=conf
+    au BufNew,BufRead     *.tf  set filetype=terraform sts=2 sw=2 ts=2 et
+    au BufNewFile,BufRead *.hcl set filetype=terraform sts=2 sw=2 ts=2 et
+
     au BufNew,BufRead *.yml set sts=2 sw=2 ts=2 et
     au BufNew,BufRead *.yaml set sts=2 sw=2 ts=2 et
 
@@ -263,25 +372,29 @@ if has("autocmd")
     " TODO: often these don't trigger on window switching between different file types
 
     " %:t = basename of file
-    au BufNew,BufRead .bash*,*.sh,*.ksh   nmap ;l :w<CR>:!clear; cd "%:p:h" && shellcheck -x -Calways "%:t" \| more -R<CR>
+    au BufNew,BufRead .bash*,*.sh,*.ksh   nmap ;l :w<CR>:!clear; cd "%:p:h" && shellcheck -x -Calways "%:t" \| less -FR<CR>
     " for scripts that don't end in .sh like Google Cloud Shell's .customize_environment
-    au FileType sh                        nmap ;l :w<CR>:!clear; cd "%:p:h" && shellcheck -x -Calways "%:t" \| more -R<CR>
+    au FileType sh                        nmap ;l :w<CR>:!clear; cd "%:p:h" && shellcheck -x -Calways "%:t" \| less -FR<CR>
+
+    au BufNewFile,BufRead .vimrc    nmap ;l :w<CR> :!clear<CR> :call LintVimrc() <CR>
 
     " these tools are in the https://github.com/HariSekhon/DevOps-Python-tools & DevOps-Bash-tools repos which should be downloaded, run 'make' and add to $PATH
     au BufNew,BufRead *.csv        nmap ;l :w<CR>:!clear; validate_csv.py "%"<CR>
     au BufNew,BufRead *.cson       nmap ;l :w<CR>:!clear; validate_cson.py "%"<CR>
     au BufNew,BufRead *.d2         nmap ;l :w<CR>:!clear; d2 fmt "%" <CR> :edit <CR> :1s/^# \!\//#\!\// <CR>
-    au BufNew,BufRead *.json       nmap ;l :w<CR>:!clear; validate_json.py "%"; echo; check_json.sh "%" \| more -R<CR>
+    au BufNew,BufRead *.json       nmap ;l :w<CR>:!clear; validate_json.py "%"; echo; check_json.sh "%" \| less -FR<CR>
     au BufNew,BufRead *.ini        nmap ;l :w<CR>:!clear; validate_ini.py "%"; validate_ini2.py "%"<CR>
+    " doesn't work on ansible inventory anyway
+    "au FileType       ini          nmap ;l :w<CR>:!clear; validate_ini.py "%"; validate_ini2.py "%"<CR>
     au BufNew,BufRead *.php        nmap ;l :w<CR>:!clear; php5 -l "%"<CR>
     " this acts as both a validation as well as a fast way of being able to edit the plist
     " trying to convert to json results in an error "invalid object in plist for destination format"
     au BufNew,BufRead *.plist      nmap ;l :w<CR>:!clear; plutil -convert xml1 "%" && echo PList OK<CR>
     au BufNew,BufRead *.properties nmap ;l :w<CR>:!clear; validate_properties.py "%"<CR>
     au BufNew,BufRead *.ldif       nmap ;l :w<CR>:!clear; validate_ldap_ldif.py "%"<CR>
-    au BufNew,BufRead *.md         nmap ;l :w<CR>:!clear; mdl "%" \| more -R<CR>
-    "au BufNew,BufRead *.sql        nmap ;l :w<CR>:!clear; TODO "%" \| more -R<CR>
-    au BufNew,BufRead *.scala      nmap ;l :w<CR>:!clear; scalastyle -c "$bash_tools/scalastyle_config.xml" "%" \| more -R<CR>
+    au BufNew,BufRead *.md         nmap ;l :w<CR>:!clear; mdl "%" \| less -FR<CR>
+    "au BufNew,BufRead *.sql        nmap ;l :w<CR>:!clear; TODO "%" \| less -FR<CR>
+    au BufNew,BufRead *.scala      nmap ;l :w<CR>:!clear; scalastyle -c "$bash_tools/scalastyle_config.xml" "%" \| less -FR<CR>
     au BufNew,BufRead *.toml       nmap ;l :w<CR>:!clear; validate_toml.py "%"<CR>
     au BufNew,BufRead *.xml        nmap ;l :w<CR>:!clear; validate_xml.py "%"<CR>
     " TODO: needs fix to allow multiple inline yaml docs in 1 file
@@ -289,126 +402,34 @@ if has("autocmd")
     "au BufNew,BufRead *.yml,*.yaml nmap ;l :w<CR>:!clear; js-yaml "%" >/dev/null && echo YAML OK<CR>
     au BufNew,BufRead *.yml,*.yaml,autoinstall-user-data nmap ;l :w<CR>:!clear; yamllint "%" && echo YAML OK<CR>
     au BufNew,BufRead *.tf,*.tf.json,*.tfvars,*.tfvars.json nmap ;l :w<CR>:call TerraformValidate()<CR>
+    au BufNew,BufRead *.hcl                                 nmap ;l :w<CR>:call TerragruntValidate()<CR>
     au BufNew,BufRead *.pkr.hcl,*.pkr.json nmap ;l :w<CR>:!packer init "%" && packer validate "%" && packer fmt -diff "%" <CR>
+    au BufNew,BufRead *.pkr.hcl,*.pkr.json nmap ;f :w<CR>:!packer fmt -diff "%" <CR>
 
     " more specific matches like pom.xml need to come after less specific matches like *.xml as last statement wins
-    au BufNew,BufRead *pom.xml*      nmap ;l :w<CR>:!clear; mvn validate -f "%" \| more -R<CR>
+    au BufNew,BufRead *pom.xml*      nmap ;l :w<CR>:!clear; mvn validate -f "%" \| less -FR<CR>
     " check_makefiles.sh is in this repo which should be added to $PATH
-    au BufNew,BufRead *Makefile*     nmap ;l :w<CR>:!clear; check_makefiles.sh "%" \| more -R<CR>
-    au BufNew,BufRead *build.gradle* nmap ;l :w<CR>:!clear; gradle -b "%" -m clean build \| more -R<CR> | nmap ;r :!gradle -b "%" clean build<CR>
-    au BufNew,BufRead *build.sbt*    nmap ;l :w<CR>:!clear; cd "%:p:h" && echo q \| sbt reload "%" \| more -R<CR>
-    au BufNew,BufRead *.travis.yml*  nmap ;l :w<CR>:!clear; travis lint "%" \| more -R<CR>
+    au BufNew,BufRead *Makefile*     nmap ;l :w<CR>:!clear; check_makefiles.sh "%" \| less -FR<CR>
+    au BufNew,BufRead *build.gradle* nmap ;l :w<CR>:!clear; gradle -b "%" -m clean build \| less -FR<CR> | nmap ;r :!gradle -b "%" clean build<CR>
+    au BufNew,BufRead *build.sbt*    nmap ;l :w<CR>:!clear; cd "%:p:h" && echo q \| sbt reload "%" \| less -FR<CR>
+    au BufNew,BufRead *.travis.yml*  nmap ;l :w<CR>:!clear; travis lint "%" \| less -FR<CR>
     au BufNew,BufRead serverless.yml nmap ;l :w<CR>:!clear; cd "%:p:h" && serverless print<CR>
-    au BufNew,BufRead *Dockerfile*   nmap ;l :w<CR>:!clear; hadolint "%" \| more -R<CR>
-    au BufNew,BufRead *docker-compose*.y*ml nmap ;l :w<CR>:!clear; docker-compose -f "%" config \| more -R<CR>
-    au BufNew,BufRead *Jenkinsfile*  nmap ;l :w<CR>:!clear; check_jenkinsfiles.sh "%" \| more -R<CR>
+    au BufNew,BufRead *Dockerfile*   nmap ;l :w<CR>:!clear; hadolint "%" \| less -FR<CR>
+    au BufNew,BufRead *docker-compose*.y*ml nmap ;l :w<CR>:!clear; docker-compose -f "%" config \| less -FR<CR>
+    au BufNew,BufRead *Jenkinsfile*  nmap ;l :w<CR>:!clear; check_jenkinsfiles.sh "%" \| less -FR<CR>
     " vagrant validate doesn't take an -f argument so it must be an exact match in order to validate the right thing
     " otherwise you will get an error or false positive
     au BufNew,BufRead Vagrantfile    nmap ;l :w<CR>:!clear; cd "%:p:h" && vagrant validate<CR>
-    au BufNew,BufRead *.circleci/config.yml*  nmap ;l :w<CR>:!clear; check_circleci_config.sh \| more -R<CR>
-    au BufNew,BufRead *circleci_config.yml*   nmap ;l :w<CR>:!clear; check_circleci_config.sh \| more -R<CR>
+    au BufNew,BufRead *.circleci/config.yml*  nmap ;l :w<CR>:!clear; check_circleci_config.sh \| less -FR<CR>
+    au BufNew,BufRead *circleci_config.yml*   nmap ;l :w<CR>:!clear; check_circleci_config.sh \| less -FR<CR>
+    au BufNew,BufRead .pylintrc      nmap ;l :w<CR>:!clear; pylint ./*.py<CR>
 
     " if a "lint:" header is found then run lint.sh - this allows for more complex file types like Kubernetes yaml
     " which can then be linted for yaml as well as k8s schema
     " XXX: this is overriding all linting regardless of this expansion - instead use a different hotkey L for fast vs full linting
     "if filereadable(expand("%:p")) && match(readfile(expand("%:p")),"lint:")
-    "    au BufNew,BufRead *  nmap ;l :w<CR>:!clear; lint.sh "%" \| more -R<CR>
+    "    au BufNew,BufRead *  nmap ;l :w<CR>:!clear; lint.sh "%" \| less -FR<CR>
     "endif
-endif
-
-
-" ============================================================================ "
-"                           K e y b i n d i n g s
-" ============================================================================ "
-
-"nmap <silent> ;c :call Cformat()<CR>
-nmap <silent> ;a :,!anonymize.py -a<CR>
-nmap          ;A :,!hexanonymize.py --case --hex-only<CR>
-nmap <silent> ;b :!git blame "%"<CR>
-"nmap <silent> ;c :call ToggleComments()<CR>
-nmap <silent> ;c :,!center.py<CR>
-nmap <silent> ;e :,!center.py --space<CR>
-nmap <silent> ;C :,!center.py --unspace<CR>
-" parses current example line and passes as stdin to bash to quickly execute examples from code - see WriteRunLine() further down for example
-" messes up interactive vim (disables vim's arrow keys) - calling a terminal reset fixes it
-nmap <silent> ;E :call WriteRunLine()<CR> :!reset<CR><CR>
-nmap <silent> ;d :r !date '+\%F \%T \%z (\%a, \%d \%b \%Y)'<CR>kJ
-"nmap <silent> ;D :Done<CR>
-nmap <silent> ;D :%!decomment.sh %<CR>
-nmap          ;f :,!fold -s -w 120 \| sed 's/[[:space:]]*$//'<CR>
-"nmap <silent> ;h :call Hr()<CR>
-nmap <silent> ;h :Hr<CR>
-nmap          ;H :call WriteHelp()<CR>
-" this inserts Hr literally
-"imap <silent> <C-H> :Hr<CR>
-nmap <silent> ;I :PluginInstall<CR>
-nmap <silent> ;j :JHr<CR>
-nmap          ;k :w<CR> :! check_kubernetes_yaml.sh %<CR>
-"nmap <silent> ;' :call Sq()<CR>
-" done automatically on write now
-"nmap <silent> ;' :call StripTrailingWhiteSpace()<CR>
-nmap <silent> ;' :w<CR> :!clear; git diff "%"<CR>
-nmap          ;n :w<CR> :n<CR>
-nmap          ;o :!cd "%:p:h" && git log -p "%:t"<CR>
-nmap          ;O :call ToggleGutter()<CR>
-nmap          ;p :prev<CR>
-"nmap          ;P :call TogglePaste()<CR>
-nmap          ;P :set paste!<CR>
-nmap          ;t :set list!<CR>
-nmap          ;q :q<CR>
-nmap          ;r :call WriteRun()<CR>
-nmap          ;R :call WriteRunDebug()<CR>
-"nmap          ;R :!run.sh %:p<CR>
-"nmap <silent> ;s :call ToggleSyntax()<CR>
-nmap <silent> ;s :,!sqlcase.pl<CR>
-"nmap          ;; :call HgGitU()<CR>
-" command not found
-"nmap          ;; :! . ~/.bashrc; gitu "%"<CR>
-nmap          ;; :w<CR> :! bash -ic 'gitu "%"'<CR>
-nmap          ;/ :w<CR> :! bash -ic 'add "%"'<CR>
-nmap          ;g :w<CR> :! bash -ic 'cd "%:p:h" && st'<CR>
-nmap          ;G :w<CR> :! bash -ic 'cd "%:p:h" && git log -p "%:t"'<CR>
-"nmap          ;L :w<CR> :! bash -ic 'cd "%:p:h" && git log -p'<CR>
-nmap          ;L :w<CR> :! lint.sh %<CR>
-nmap          ;. :w<CR> :! bash -ic 'cd "%:p:h" && pull'<CR>
-nmap          ;[ :w<CR> :! bash -ic 'cd "%:p:h" && push'<CR>
-" write then grep all URLs that are not mine, followed by all URLs that are mine in reverse order to urlview
-" this is so that 3rd party URLs followed by my URLs from within the body of files get higher priority than my header links
-nmap <silent> ;u :w<CR> :! bash -c 'grep -vi harisekhon "%" ; grep -i harisekhon "%" \| tail -r' \| urlview <CR> :<CR>
-" pass current line as stdin to urlview to quickly go to this url
-" messes up interactive vim (disables vim's arrow keys) - calling a terminal reset fixes it
-"nmap <silent> ;U :.w !urlview<CR><CR> :!reset<CR><CR>
-nmap <silent> ;U :.w !urlopen.sh<CR><CR>
-" breaks ;; nmap
-"nmap          ;\ :source ~/.vimrc<CR>
-"nmap          ;/ :source ~/.vimrc<CR>
-"nmap          ;v :source ~/.vimrc<CR>
-nmap          ;v :call SourceVimrc()<CR>
-nmap          ;V :call WriteRunVerbose()<CR>
-nmap          ;w :w<CR>
-"nmap          ;x :x<CR>
-nmap          ;y :w !pbcopy<CR><CR>
-nmap          ;z :call ToggleDebug()<CR>
-nmap          ;§ :call ToggleScrollLock()<CR>
-
-"noremap <silent> ,cc :<C-B>silent <C-E>s/^/<C-R>=escape(b:comment_char,'\/')<CR>/<CR>:nohlsearch<CR>
-"noremap <silent> ,cu :<C-B>silent <C-E>s/^\V<C-R>=escape(b:comment_char,'\/')<CR>//e<CR>:nohlsearch<CR>
-
-" reloading with these didn't fix above pipe disabling arrow keys but
-" adding a terminal reset after the pipe command did fix it
-"noremap <Up>    <Up>
-"noremap <Down>  <Down>
-"noremap <Left>  <Left>
-"noremap <Right> <Right>
-
-if has("autocmd")
-    au BufNew,BufRead *docker-compose.y*ml   nmap ;r :w<CR>:!clear; docker-compose -f "%" up<CR>
-endif
-
-if has("autocmd")
-    "au BufNew,BufRead **/haproxy-configs/*.cfg   nmap ;r :w<CR>:!clear; haproxy -f "%:p:h/10-global.cfg" -f "%:p:h/20-stats.cfg" -f "%"<CR>
-    au BufNew,BufRead **/haproxy-configs/*.cfg   nmap ;r :w<CR>:!clear; "%:p:h/run.sh" "%"<CR>
-    au BufNew,BufRead **/haproxy-configs/*.cfg   nmap ;R :w<CR>:!clear; DEBUG=1 "%:p:h/run.sh" "%"<CR>
 endif
 
 
@@ -416,13 +437,53 @@ endif
 "                               F u n c t i o n s
 " ============================================================================ "
 
-function! SourceVimrc()
-    :source ~/.vimrc
-    let vim_tags = system("grep vim: " + expand("%") + " | sed 's/\#//; s/vim:/set /; s/:/ /g'")
-    echom &vim_tags
-    "execute "normal!" . &vim_tags
-    ":! grep vim: expand("%") | sed 's/\#//'
-    :set ts sts sw et filetype
+" avoids this error when trying to run ;-v nmap to re-source this vimrc:
+"
+"   E127: Cannot redefine function SourceVimrc: It is in use
+"
+"function! SourceVimrc()
+" This function won't reload as a result, must exit and restart vim
+if ! exists('*SourceVimrc')
+    function SourceVimrc()
+        :source ~/.vimrc
+        let vim_tags = system('grep vim: ' + expand('%') + " | head -n1 | sed 's/^\"[[:space:]]*vim:/set /; s/:/ /g'")
+        " this breaks
+        "echo &vim_tags
+        "execute "normal!" . &vim_tags
+        ":! grep vim: expand("%") | sed 's/\#//'
+        :echo "\n"
+        :echo "Currently set options:"
+        :echo "\n"
+        :set ts sts sw et filetype
+    endfunction
+endif
+
+":! bash -c 'vim -c "source %" -c "q" && echo "ViM basic lint validation passed" || "ViM basic lint validation failed"'
+"":! if type -P vint &>/dev/null; then vint "%"; fi
+function! LintVimrc()
+  let l:vimrc_path = expand('~/.vimrc')
+
+  echo 'Sourcing ~/.vimrc file...'
+  try
+    execute 'source' l:vimrc_path
+    echohl InfoMsg | echo "Basic Validation Passed: .vimrc" | echohl None
+  catch
+    echohl ErrorMsg | echo "Basic Validate Failed: errors found in .vimrc" | echohl None
+    return
+  endtry
+
+  if executable('vint')
+    echo "Running vint..."
+    let l:vint_output = system('vint ' . l:vimrc_path)
+    if v:shell_error
+      echohl ErrorMsg | echo l:vint_output | echohl None
+      echohl ErrorMsg | echo "Vint Validation Failed: .vimrc" | echohl None
+    else
+      echohl InfoMsg | echo "Vint Validation Passed: .vimrc" | echohl None
+    endif
+  else
+    echohl WarningMsg | echo "Vint not found in PATH, skipping validation" | echohl None
+  endif
 endfunction
 
 function! ToggleSyntax()
@@ -476,10 +537,10 @@ endfunction
 
 function! ToggleDebug()
     if $DEBUG
-        echo "DEBUG disabled"
+        echo 'DEBUG disabled'
         let $DEBUG=""
     else
-        echo "DEBUG enabled"
+        echo 'DEBUG enabled'
         let $DEBUG=1
     endif
 endfunction
@@ -506,6 +567,44 @@ endfunction
 :command! JHr :normal a// <ESC>74a=<ESC>a //<ESC>
 
 :command! Done :normal 37a=<ESC>a DONE <ESC>37a=<ESC>
+
+" ============================================================================ "
+"                            G i t   F u n c t i o n s
+" ============================================================================ "
+
+" works better than a straight nmap which sometimes fails to execute and re-sourcing .vimrc doesn't solve it
+" without exiting vim - this is buggy behaviour that doesn't seem to happen when using functions instead
+
+function! GitUpdateCommit()
+    ":! bash -ic 'cd "%:p:h" && gitu "%:t" '
+    :! git_diff_commit.sh "%"
+endfunction
+
+function! GitAddCommit()
+     ! bash -ic 'add "%"'
+endfunction
+
+function! GitStatus()
+    :! bash -ic 'cd "%:p:h" && st'
+endfunction
+
+function! GitLogP()
+    :! bash -ic 'cd "%:p:h" && git log -p "%:t"'
+endfunction
+
+function! GitPull()
+    :! bash -ic 'cd "%:p:h" && pull'
+endfunction
+
+function! GitPush()
+    :! bash -ic 'cd "%:p:h" && push'
+endfunction
+
+" ============================================================================ "
+
+function! MarkdownIndex()
+    :! markdown_replace_index.sh "%"
+endfunction
 
 " superceded by anonymize.py from DevOps Python tools repo, called via hotkey ;a declared above
 ":function RemoveIPs()
@@ -641,7 +740,12 @@ function! TerraformValidate()
     " remove terraform plan copy-pasted removals for fast backporting
     :%s/^[[:space:]]*[-~][[:space:]]//e
     :%s/[[:space:]]->[[:space:]].*$//e
-    :!clear; bash -c 'if [ -d "%:p:h"/.terraform ]; then cd "%:p:h"; fi; { terraform fmt -diff; terraform validate; } | more -R'
+    :!clear; bash -c 'if [ -d "%:p:h"/.terraform ]; then cd "%:p:h"; fi; { terraform fmt -diff; terraform validate; } | less -FR'
+endfunction
+
+function! TerragruntValidate()
+    :%s/[[:space:]]->[[:space:]].*$//e
+    :!clear; bash -c 'if [ -d "%:p:h"/.terraform ]; then cd "%:p:h"; fi; { terragrunt hclfmt --terragrunt-diff; terragrunt validate; } | less -FR'
 endfunction
 
 function! TerraformPlan()
@@ -666,8 +770,8 @@ endfunction
 " ============================================================================ "
 
 " either works, requires expand()
-"let MYLOCALVIMRC = "~/.vimrc.local"
-"let MYLOCALVIMRC = "$HOME/.vimrc.local"
+"let MYLOCALVIMRC = '~/.vimrc.local'
+"let MYLOCALVIMRC = '$HOME/.vimrc.local'
 
 " source a config file only if it exists
 function! SourceIfExists(file)
@@ -676,9 +780,9 @@ function! SourceIfExists(file)
   endif
 endfunction
 
-call SourceIfExists("~/.vimrc.local")
-call SourceIfExists("~/.vim/colors.vim")
+call SourceIfExists('~/.vimrc.local')
+call SourceIfExists('~/.vim/colors.vim')
 
 if has('gui_running')
-  call SourceIfExists("~/.gvimrc.local")
+  call SourceIfExists('~/.gvimrc.local')
 endif

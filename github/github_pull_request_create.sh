@@ -37,6 +37,14 @@ The BASE branch is the branch you want to merge INTO, eg. 'master' or 'main'
 If \$GITHUB_PULL_REQUEST_TITLE or \$GITHUB_PULL_REQUEST_BODY environment variables are set, those values will be used to generate the pull request
 If \$GITHUB_PULL_REQUEST_BODY is not set, but .github/pull_request_template.md is present at the top of the current checkout repo, will use that for the body. If the template body contains Jira ticket number token templates such as AA-XXXXX or AA-NNNNN and the current branch is prefixed with a matching alpha-number token, then those tokens will be replaced with the real Jira number from the branch
 
+If \$GITHUB_PULL_REQUEST_AUTO_MERGE is set to 'true' then marks the pull request to be automatically merged once its pre-requisites like checks and peer review approval are passed
+
+If \$GITHUB_PULL_REQUEST_SQUASH is set to any value, then marks the pull request to use a squash commit, otherwise defaults to merge
+
+To raise PRs across forks do:
+
+    ${0##*/} <upstream_repo> <your_forked_owner>:<your_forked_repo>:<your_feature_branch> <upstream_repo_base_trunk_branch_to_merge_to>
+
 
 Requires GitHub CLI to be installed and configured
 
@@ -123,6 +131,7 @@ if [ "$owner_repo" = '{owner}/{repo}' ]; then
             #body_template="${body_template//$match1/$branch_prefix}"
             #body_template="${body_template//$match2/$branch_prefix}"
             #shopt -u nocasematch
+            # shellcheck disable=SC2001
             body_template="$(sed "s/\\($match1\\|$match2\\)/$branch_prefix/gi" <<< "$body_template")"
         fi
     fi
@@ -157,17 +166,26 @@ if [ "$total_commits" -gt 0 ]; then
         echo >&2
         echo "$existing_pr_url"
         echo >&2
-        exit 0
+    else
+        timestamp "Creating Pull Request from head '$head' into base branch '$base'"
+        # --no-maintainer-edit is important, otherwise member ci account gets error (and yes there is a double 'Fork collab' error in GitHub CLI's error message):
+        # pull request create failed: GraphQL: Fork collab Fork collab can't be granted by someone without permission (createPullRequest)
+        gh pr create -R "$owner/$repo" \
+                     --base  "$base"   \
+                     --head  "$head"   \
+                     --title "$title"  \
+                     --body  "$body"   \
+                     --no-maintainer-edit
     fi
-    timestamp "Creating Pull Request from head '$head' into base branch '$base'"
-    # --no-maintainer-edit is important, otherwise member ci account gets error (and yes there is a double 'Fork collab' error in GitHub CLI's error message):
-    # pull request create failed: GraphQL: Fork collab Fork collab can't be granted by someone without permission (createPullRequest)
-    gh pr create -R "$owner/$repo" \
-                 --base  "$base"   \
-                 --head  "$head"   \
-                 --title "$title"  \
-                 --body  "$body"   \
-                 --no-maintainer-edit
+    if [ "${GITHUB_PULL_REQUEST_AUTO_MERGE:-}" = true ]; then
+        pr_url="$(get_pr_url)"
+        # not supporting Rebase on purpose - see https://medium.com/@harisekhon/the-evils-of-git-rebasing-beec34a607c7
+        merge_type="--merge"
+        if [ "${GITHUB_PULL_REQUEST_SQUASH:-}" = true ]; then
+            merge_type="--squash"
+        fi
+        gh pr merge "$pr_url" --auto "$merge_type"
+    fi
     echo >&2
 else
     timestamp "Branch '$base' is already up to date with upstream, skipping creating PR"

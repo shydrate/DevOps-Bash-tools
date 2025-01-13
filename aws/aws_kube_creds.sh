@@ -35,14 +35,15 @@ Can supply arguments to be passed to AWS CLI to set things like region eg.
     ${0##*/} --region eu-west-2
 
 
-$usage_aws_cli_required
+$usage_aws_cli_jq_required
 
 
 See also:
 
-    kubectl.sh         - isolates kube config to fix kubectl commands to the given cluster to prevent race conditions from applying kubectl changes to the wrong cluster
-    aws_kubectl.sh     - same as above but also gets the credential
-    gke_kube_creds.sh  - same as this script but for GCP GKE clusters
+    kubectl.sh             - isolates kube config to fix kubectl commands to the given cluster to prevent race conditions from applying kubectl changes to the wrong cluster
+    aws_kubectl.sh         - same as above but also gets the credential
+    gke_kube_creds.sh      - same as this script but for GCP GKE clusters
+    rancher_kube_creds.sh  - same as this script but for Rancher Kubernetes clusters
 "
 
 # used by usage() in lib/utils.sh

@@ -46,6 +46,25 @@ export TRAP_SIGNALS="INT QUIT TRAP ABRT TERM EXIT"
 # but this works
 export LANG=en_US.UTF-8
 
+open(){
+    if is_mac; then
+        command open "$@"
+    elif type -P xdg-open &>/dev/null; then
+        xdg-open "$@"
+    elif sensible-browser &>/dev/null; then
+        sensible-browser "$@"
+    elif x-www-browser &>/dev/null; then
+        x-www-browser "$@"
+    elif gnome-open &>/dev/null; then
+        gnome-open "$@"
+    else
+        echo "Neither 'xdg-open' nor 'sensible-browser' were found in \$PATH - install one of them to automatically open this URL:"
+        echo
+        echo "$*"
+        echo
+    fi
+}
+
 if [ -z "${run_count:-}" ]; then
     run_count=0
 fi
@@ -271,23 +290,30 @@ get_arch(){
     if [ "$arch" = x86_64 ]; then
         arch=amd64  # files are conventionally usually named amd64 not x86_64
     fi
+    #if [ "$arch" = aarch64 ]; then
+    #    arch=arm64
+    #fi
     if [ -n "${ARCH_X86_64:-}" ]; then
         if [ "$arch" = amd64 ] || [ "$arch" = x86_64 ]; then
             arch="$ARCH_X86_64"
         fi
-    elif [ -n "${ARCH_X86:-}" ]; then
+    fi
+    if [ -n "${ARCH_X86:-}" ]; then
         if [ "$arch" = i386 ]; then
             arch="$ARCH_X86"
         fi
-    elif [ -n "${ARCH_ARM64:-}" ]; then
+    fi
+    if [ -n "${ARCH_ARM64:-}" ]; then
         if [ "$arch" = arm64 ]; then
             arch="$ARCH_ARM64"
         fi
-    elif [ -n "${ARCH_ARM:-}" ]; then
+    fi
+    if [ -n "${ARCH_ARM:-}" ]; then
         if [ "$arch" = arm ]; then
             arch="$ARCH_ARM"
         fi
-    elif [ -n "${ARCH_OVERRIDE:-}" ]; then
+    fi
+    if [ -n "${ARCH_OVERRIDE:-}" ]; then
         arch="$ARCH_OVERRIDE"
     fi
     echo "$arch"
@@ -505,6 +531,7 @@ trap_debug_env(){
        ! type trap_function &>/dev/null &&
        type docker_image_cleanup &>/dev/null; then
         trap_function(){
+            # shellcheck disable=SC2317
             docker_image_cleanup
         }
     fi
@@ -528,6 +555,9 @@ pass(){
 read_secret(){
     secret=""
     prompt="Enter ${1:-secret value}: "
+    # doesn't echo any characters to the screen even in commands
+    #stty -echo
+    # this gives stars feedback which is nicer
     while IFS= read -p "$prompt" -r -s -n 1 char; do
         if [[ "$char" == $'\0' ]]; then
             break
@@ -535,11 +565,19 @@ read_secret(){
         prompt='*'
         secret="${secret}${char}"
     done
+    #stty echo
     echo
     export secret
 }
 
 if is_mac; then
+    awk(){
+        # needed for awk -v IGNORECASE=1 to work for case insensitive regex
+        command gawk "$@"
+    }
+    grep(){
+        command ggrep "$@"
+    }
     readlink(){
         command greadlink "$@"
     }
@@ -715,7 +753,7 @@ stat_bytes(){
 }
 
 timestamp(){
-    printf "%s" "$(date '+%F %T')  $*" >&2
+    printf "%s  %s" "$(date '+%F %T')" "$*" >&2
     if [ $# -gt 0 ]; then
         printf '\n' >&2
     fi
@@ -729,6 +767,13 @@ seconds_to_hours(){
 
 warn(){
     timestamp "WARNING: $*"
+}
+warning(){
+    warn "$@"
+}
+
+error(){
+    timestamp "ERROR: $*"
 }
 
 log(){
@@ -773,6 +818,20 @@ startupwait(){
 # as a fallback in when_ports_available and when_url_content below
 # shellcheck disable=SC2119
 startupwait
+
+next_available_port(){
+    local local_port="${1:-1024}"
+    local next_port
+    while netstat -lnt | grep -q ":$local_port "; do
+        next_port="$((local_port + 1))"
+        timestamp "Local port '$local_port' in use, trying next port '$next_port'"
+        local_port="$next_port"
+        if [ "$local_port" -gt 65535 ]; then
+            die "ERROR: No local port found available"
+        fi
+    done
+    echo "$local_port"
+}
 
 when_ports_available(){
     local max_secs="${1:-}"
@@ -964,8 +1023,15 @@ when_url_content(){
         while [ "$SECONDS" -lt "$max_secs" ]; do
             ((try_number+=1))
             timestamp "$try_number trying $url"
-            # shellcheck disable=SC2086
-            if curl -skL --connect-timeout 1 --max-time 5 ${args:-} "$url" | grep -Eq -- "$expected_regex"; then
+            #
+            # tac reads full content to prevent grep closing stdin from causing this curl error:
+            #
+            #   curl: (23) Failure writing output to destination
+            #
+            # ignore tac exit code from breaking the pipefail
+            #
+            # shellcheck disable=SC2086,SC2119
+            if curl -skL --connect-timeout 1 --max-time 5 ${args:-} "$url" | { tac || : ; } | grep -Eq -- "$expected_regex"; then
                 timestamp "URL content detected '$expected_regex'"
                 found=1
                 break
@@ -1109,8 +1175,8 @@ num_args(){
 help_usage(){
     for arg; do
         case "$arg" in
-            -h|--help)  usage
-                        ;;
+            -h|-help|--help)  usage
+                              ;;
         esac
     done
 }
@@ -1133,13 +1199,18 @@ no_more_args(){
     fi
 }
 
+no_args(){
+    if [ -n "${1:-}" ]; then
+        usage "args given where none expected:  $*"
+    fi
+}
+
 check_env_defined(){
     local env="$1"
     if [ -z "${!env:-}" ]; then
         usage "\$$env not defined"
     fi
 }
-
 
 is_yes(){
     shopt -s nocasematch
@@ -1170,6 +1241,63 @@ is_float(){
     [[ "$arg" =~ ^[[:digit:]]+(\.[[:digit:]]+)?$ ]]
 }
 
+is_bool(){
+    local arg="$1"
+    # intentionally not making this case insensitive in case APIs are touchy about this
+    # calling script can set case matching insensitivity if needed
+    [[ "$arg" =~ ^true|false$ ]]
+}
+
+# [[ regex
+is_regex(){
+    local regex="$1"
+    # right side must not be quoted in order to be properly interpreted as regex
+    [[ "$regex" =~ $regex ]]
+}
+
+is_port(){
+    local port="$1"
+    if ! is_int "$port"; then
+        return 1
+    elif [ "$port" -lt 1 ]; then
+        return 1
+    elif [ "$port" -gt 65535 ]; then
+        return 1
+    fi
+}
+
+is_url(){
+    local arg="$1"
+    [[ "$arg" =~ ^$url_regex$ ]]
+}
+
+exponential(){
+    local int="$1"
+    local max="${2:-}"
+    if ! is_int "$int"; then
+        echo "ERROR: non-integer passed as first arg to exponential() function!" >&2
+        return 1
+    fi
+    if [ -n "$max" ]; then
+        if ! is_int "$max"; then
+            echo "ERROR: non-integer passed as second arg to exponential() function!" >&2
+            return 1
+        fi
+        if [ "$int" -ge "$max" ]; then
+            echo "$max"
+            return
+        fi
+    fi
+    local result
+    result="$((int * 2))"
+    if [ -n "$max" ]; then
+        if [ "$result" -gt "$max" ]; then
+            result="$max"
+        fi
+    fi
+    echo "$result"
+}
+
 parse_export_key_value(){
     local env_var="$1"
     env_var="${env_var%%#*}"
@@ -1192,11 +1320,15 @@ parse_export_key_value(){
 #                                   JSON utils
 # ============================================================================ #
 
+# extremely poor performance on large 3MB json string from https://updates.jenkins.io/current/update-center.actual.json
+# seems to hang, not sure why yet, avoid and use a simpler test in that case
 is_blank(){
     local arg="${*:-}"
     arg="${arg##[[:space:]]}"
     arg="${arg%%[[:space:]]}"
     [ -z "$arg" ]
+    # or
+    #[[ "$arg" =~ ^[[:blank:]]*$ ]]
 }
 
 not_blank(){
@@ -1279,3 +1411,44 @@ jq_is_empty_list(){
     jq -e 'length == 0' >/dev/null
 }
 # ==============================
+
+# parse a .dat file's column to CSV - used to generate data for embedding into MermaidJS mmd config in:
+#
+# git/git_graph_*_mermaidjs.sh
+#   and
+# github/github_graph_*_mermaidjs.sh
+#
+parse_file_col_to_csv(){
+    local data_file="$1"
+    local field="$2"
+    awk "{print \$$field}" "$data_file" |
+    tr '\n' ',' |
+    sed 's/,/, /g; s/, $//'
+}
+
+file_modified_in_last_days(){
+    local file="$1"
+    local days="$2"
+    if ! is_int "$days"; then
+        die "Non-integer passed as second arg to file_modified_in_last_days()"
+    fi
+    if ! [ -f "$file" ]; then
+        return 1
+    elif find "$file" -mtime -"$days" -print | grep -q .; then
+        return 0
+    else
+        local days_ago_in_seconds
+        days_ago_in_seconds="$(date -d "$days days ago" '+%s')"
+        if is_mac; then
+            if [ "$(stat -f '%m' "$file")" -ge "$days_ago_in_seconds" ]; then
+                return 0
+            else
+                return 1
+            fi
+        elif [ "$(stat -c '%Y' "$file")" -ge "$days_ago_in_seconds" ]; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+}

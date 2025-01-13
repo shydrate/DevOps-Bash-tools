@@ -42,7 +42,7 @@ fi
 # unreliable that HOME is set, ensure shell evaluates to the right thing before we use it
 [ -n "${HOME:-}" ] || HOME=~
 
-add_PATH "${KREW_ROOT:-$HOME/.krew}"
+add_PATH "${KREW_ROOT:-$HOME/.krew/bin}"
 
 for x in "$bash_tools"/kubernetes*.sh; do
     x="${x##*/}"
@@ -100,7 +100,55 @@ alias cons=contexts
 # contexts has this info and is more useful
 #alias clusters="k config get-clusters"
 
-alias namespace='k config get-contexts | awk "/$(kubectl config current-context)/ {print \$NF}"'
+# scripts in kubernetes/ directory that should be added to \$PATH (done automatically by sourcing this repo's .bashrc)
+alias kbusybox="kubectl_busybox.sh"
+alias kalpine="kubectl_alpine.sh"
+alias kcurl="kubectl_curl.sh"
+alias kdns="kubectl_dnsutils.sh"
+
+kube_config_isolate(){
+    local tmpdir="/tmp/.kube"
+
+    mkdir -pv "$tmpdir"
+
+    local default_kubeconfig="${HOME:-$(cd ~ && pwd)}/.kube/config"
+    local original_kubeconfig="${KUBECONFIG:-$default_kubeconfig}"
+
+    # reload safety - do not source from new tmpdir - not necessary for direnv but useful for local sourcing tests
+    #if [[ "$original_kubeconfig" =~ $tmpdir ]]; then
+    #    echo "ignoring \$KUBECONFIG=$original_kubeconfig, using default home location $default_kubeconfig"
+    #    original_kubeconfig="$default_kubeconfig"
+    #fi
+
+    # isolate the kubernetes context to avoid a race condition affecting any other shells or scripts
+    # epoch is added because $$ and $PPID are direnv sub-processes and may be reused later, so using epoch to add uniqueness
+    local epoch
+    epoch="$(date +%s)"
+    export KUBECONFIG="$tmpdir/config.${EUID:-${UID:-$(id -u)}}.$$.$epoch"
+
+    # load your real kube config to isolated staging area to source the context info
+    if [ -f "$original_kubeconfig" ]; then
+        cp -v -- "$original_kubeconfig" "$KUBECONFIG"
+    elif [ -f "$default_kubeconfig" ]; then
+        cp -v -- "$default_kubeconfig" "$KUBECONFIG"
+    elif [ -f "$PWD/.kube/config" ]; then
+        cp -v -- "$PWD/.kube/config" "$KUBECONFIG"
+    elif [ -f "/etc/rancher/k3s/k3s.yaml" ]; then
+        cp -v -- "/etc/rancher/k3s/k3s.yaml" "$KUBECONFIG"
+    else
+        echo "WARNING: failed to find one of:
+
+        $original_kubeconfig
+        $default_kubeconfig
+        $PWD/.kube/config
+        /etc/rancher/k3s/k3s.yaml
+    " >&2
+    fi
+}
+
+# false positive, not using positional parameters
+# shellcheck disable=SC2142
+alias namespace='k config get-contexts | grep -F "$(kubectl config current-context)" | awk "{print \$5}"'
 alias kwhere="{ echo -n 'context: '; context; echo -n 'namespace: '; namespace; }"
 alias con='kwhere'
 
@@ -465,7 +513,7 @@ watchpods(){
 }
 
 kdesc(){
-    k describe "$@"
+    k describe "$@" | less
 }
 
 # kdesc pod with grep filter on name for fast describing a pod in the current or given namespace
@@ -544,4 +592,26 @@ kclusters(){
 # to kubectl apply manifests to both clusters for multi-cluster deployments
 kclustersapply(){
     kclusters apply -f "$@"  # eg. manifests
+}
+
+# inspired by my class 'when' functions in when.sh
+whenpodup(){
+    local name="${1:-}"
+    shift || :
+    if [ -z "$name" ]; then
+        echo "usage: whenpodup <name>"
+        return 1
+    fi
+    local count=0
+    while ! kubectl get pods "$name" -o 'jsonpath={.status.phase}' | grep -q 'Running'; do
+        ((count+=1))
+        timestamp "waiting for pod '$name' to come up..."
+        if [ $count -gt 22 ]; then
+            sleep 10
+        else
+            sleep 5
+        fi
+    done
+    timestamp "pod '$name' is up"
+    "$@"
 }

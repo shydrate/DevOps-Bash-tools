@@ -23,7 +23,7 @@ srcdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC2034,SC2154
 usage_description="
-Lists all alternative tags for the given specific GCR docker image:tag
+Lists all alternative tags for the given specific ECR docker image:tag
 
 If a container has multiple tags (eg. latest, v1, hashref), you can supply '<image>:latest' to see which version has been tagged to 'latest'
 
@@ -33,7 +33,7 @@ If no tag is given, assumes 'latest'
 
 If the image isn't found in GCR, will return nothing and no error code since this is the default GCloud SDK behaviour
 
-$usage_aws_cli_required
+$usage_aws_cli_jq_required
 
 
 Similar scripts:

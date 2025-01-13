@@ -121,7 +121,7 @@
 .Codefresh/agent/
 .compiz
 .conda/
-.config
+#.config
 # contains repo_token / COVERALLS_REPO_TOKEN
 .coveralls.yml
 .cpan/build/
@@ -776,7 +776,7 @@ m4/lt~obsolete.m4
 *.apples
 
 # Initialized files
-*.ini
+#*.ini  # used by Ansible for inventory.ini
 *.basic
 
 ### BitTorrent ###
@@ -3403,7 +3403,7 @@ DerivedData/
 # General
 
 # Icon must end with two \r
-Icon
+Icon
 
 # Thumbnails
 
@@ -3708,7 +3708,7 @@ override.tf.json
 #[Ll]ib
 [Ll]ib64
 [Ll]ocal
-[Ss]cripts
+#[Ss]cripts
 pyvenv.cfg
 pip-selfcheck.json
 

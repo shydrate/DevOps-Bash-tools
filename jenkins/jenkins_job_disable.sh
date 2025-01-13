@@ -26,7 +26,7 @@ srcdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 usage_description="
 Disables a Jenkins job/pipeline via the Jenkins API
 
-Tested on Jenkins 2.319
+Tested on Jenkins 2.319 and 2.246
 
 Uses the adjacent jenkins_api.sh - see there for authentication details
 "
@@ -42,5 +42,5 @@ min_args 1 "$@"
 job="$1"
 shift || :
 
+timestamp "Disabling Jenkins job '$job'"
 "$srcdir/jenkins_api.sh" "/job/$job/disable" -X POST "$@"
-timestamp "Disabled Jenkins job '$job'"
