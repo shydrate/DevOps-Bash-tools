@@ -23,7 +23,7 @@ srcdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC2034,SC2154
 usage_description="
-Tags a given GCR docker image with it's creation Date and Timestamp
+Tags a given ECR docker image with it's creation Date and Timestamp
 without pulling and pushing the docker image
 
 The timestamp is the created time (either uploaded or created by Google Cloud Build)
@@ -36,7 +36,7 @@ YYYY-MM-DDTHHMMSSZ  (standard ISO UTC time without semi-colons which are invalid
 The timestamp will be normalized to UTC
 
 
-$usage_aws_cli_required
+$usage_aws_cli_jq_required
 
 
 Similar scripts:

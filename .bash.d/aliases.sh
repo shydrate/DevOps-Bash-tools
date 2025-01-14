@@ -41,6 +41,7 @@ alias bashrc='$EDITOR $bashrc && reload'
 alias bashrc2='$EDITOR $bashrc2 && reload'
 alias bashrclocal='$EDITOR $bashrc.local; reload'
 alias bashrc3=bashrclocal
+alias v='vim'
 alias vimrc='$EDITOR ~/.vimrc'
 alias screenrc='$EDITOR ~/.screenrc'
 alias aliases='$EDITOR $bashd/aliases.sh'
@@ -48,8 +49,11 @@ alias ae=aliases
 alias be=bashrc
 alias be2=bashrc2
 alias be3=bashrc3
-alias ve=vimrc
 alias se=screenrc
+alias ve=vimrc
+alias creds='$EDITOR ~/.env/creds'
+alias pbc=pbcopy
+alias pbp=pbpaste
 # keep emacs with no window, use terminal, not X, otherwise I'd run xemacs...
 #alias emacs="emacs -nw"
 #em(){ emacs "$@" ; }
@@ -94,6 +98,8 @@ alias paths=path
 
 alias tmp="cd /tmp"
 
+alias mksupportdir="mkdir -v support-bundle-$(date '+%F_%H%M')"
+
 # not as compatible, better to call pypy explicitly or in #! line
 #if type -P pypy &>/dev/null; then
 #    alias python=pypy
@@ -108,8 +114,8 @@ alias bt='sti bt; cd $bt'
 export bashd="$bash_tools/.bash.d"
 alias bashd='sti bashd; cd $bashd'
 
-#alias cleanshell='exec env - bash --rcfile /dev/null'
-alias cleanshell='exec env - bash --norc --noprofile'
+#alias cleanshell='env - bash --rcfile /dev/null'
+alias cleanshell='env - bash --norc --noprofile'
 alias newshell='exec bash'
 alias rr='newshell'
 
@@ -121,6 +127,7 @@ alias leetmode=l33tmode
 alias hist=history
 alias clhist='HISTSIZE=0; HISTSIZE=5000'
 alias nohist='unset HISTFILE'
+alias histgrep='history | grep'
 
 export LS_OPTIONS='-F'
 if is_mac; then
@@ -185,6 +192,8 @@ alias github="sti github; cd '$github'";
 export work="$github/work"
 alias work="sti work; cd '$work'"
 
+alias btup="bt; u; cd -"
+
 export bitbucket=~/bitbucket
 alias bitb='cd $bitbucket'
 # clashes with bitbucket-cli
@@ -237,6 +246,7 @@ done
 
 doc_alias(){
     local docpath="$1"
+    local prefix="${2:-d}"
     [ -f "$docpath" ] || return 1
     docfile="${docpath##*/}"
     # slows down shell creation, will drain battery
@@ -256,12 +266,18 @@ doc_alias(){
     #    echo "WARNING: $docfile conflicts with existing alias, duplicate doc '$docfile' among ~/docs, ~/github/docs, ~/bitbucket/docs?"
     #    return
     #fi
+    local shortname="${docfile%.md}"
+    local shortname="${shortname%.txt}"
     # shellcheck disable=SC2139,SC2140
-    alias "d$docfile"="ti ${docpath##*/}; \$EDITOR $docpath"
+    alias "${prefix}${shortname}"="ti ${docpath##*/}; \$EDITOR $docpath"
 }
 
 for x in ~/docs/* "$github"/docs/* "$bitbucket"/docs/*; do
     doc_alias "$x" || :
+done
+
+for x in ~/knowledge/* "$github"/knowledge/* "$bitbucket"/knowledge/*; do
+    doc_alias "$x" k || :
 done
 
 # ============================================================================ #
@@ -336,6 +352,9 @@ export desktop=~/Desktop
 export desk="$desktop"
 alias desktop='cd "$desktop"'
 alias desk=desktop
+
+export screenshots=~/Desktops/Screenshots
+alias screenshots='cd "$screenshots"'
 
 export bin=~/bin
 alias bin="cd $bin"

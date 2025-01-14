@@ -22,7 +22,7 @@ srcdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC2034,SC2154
 usage_description="
-Converts one or more AVI files given or found recursively under given paths or current directory to mp4 format using ffmpeg
+Convert one or more AVI files given or found recursively under given paths or current directory to mp4 format using ffmpeg
 
 Useful to be able to stream videos to devices like smart TVs that may otherwise not understand the codecs used in the original format
 
@@ -48,7 +48,8 @@ for basedir in "${@:-.}"; do
     while read -r filepath; do
         mp4_filepath="${filepath%.avi}.mp4"
         if ! [ -s "$mp4_filepath" ]; then
-            trap_cmd "echo; echo 'removing partially done file:'; rm -fv '$mp4_filepath'; untrap"
+            # shellcheck disable=SC2016
+            trap_cmd 'echo; echo "removing partially done file:"; rm -fv "$mp4_filepath"; untrap'
             timestamp "converting $filepath => $mp4_filepath"
             #time nice ffmpeg -i "$filepath" "$mp4_filepath" < /dev/null  # don't let the ffmpeg command eat the incoming filenames
             time nice ffmpeg -i "$filepath" -vcodec copy -acodec copy -scodec mov_text -movflags +faststart "$mp4_filepath" < /dev/null

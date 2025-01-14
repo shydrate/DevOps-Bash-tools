@@ -100,9 +100,14 @@ fi
 
 "$srcdir/check_duplicate_dependencies.sh"
 
-"$srcdir/check_non_executable_scripts.sh"
+"$srcdir/check_shebang_non_executable.sh"
 
-"$srcdir/check_srcdir_references.sh"
+# false alerts on the second line of this construct
+#
+# if [ -x $srcdir/script.sh ]; then
+#     $srcdir/script.sh
+#
+#"$srcdir/check_srcdir_references.sh"
 
 "$srcdir/check_bash_syntax.sh"
 
@@ -181,6 +186,10 @@ if [ -z "${NO_PYTHON_PYLINT_CHECK:-}" ]; then
     "$srcdir/check_python_pylint.sh"
 fi
 
+if [ -z "${NO_JAVASCRIPT_ESLINT_CHECK:-}" ]; then
+    "$srcdir/check_javascript_eslint.sh"
+fi
+
 #"$srcdir/../python/python3.sh"
 
 # this is usually run after build, no point testing again
@@ -217,6 +226,8 @@ fi
 
 # too heavy to run all the time, isExcluded on every file has really bad performance
 "$srcdir/check_whitespace.sh"
+
+"$srcdir/check_no_suid_guid_shell_scripts.sh"
 
 # ========================================
 # Expensive checks, do separately in CI/CD

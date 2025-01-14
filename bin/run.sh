@@ -115,6 +115,8 @@ else
                  *.tf)  #terraform plan
                         terraform apply
                         ;;
+       terragrunt.hcl)  terragrunt apply
+                        ;;
  *.pkr.hcl|*.pkr.json)  packer init "$filename" &&
                         packer build "$filename"
                         ;;
@@ -122,6 +124,8 @@ else
                         ;;
                  *.gv)  file_png="${filename%.gv}.png"
                         dot -T png "$filename" -o "$file_png" >/dev/null && open "$file_png"
+                        ;;
+            .pylintrc)  pylint ./*.py
                         ;;
                     *)  if [[ "$filename" =~ /docker-compose/.+\.ya?ml$ ]]; then
                             docker_compose_up

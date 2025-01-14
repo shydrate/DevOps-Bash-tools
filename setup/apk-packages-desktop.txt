@@ -13,4 +13,6 @@
 #                      Alpine Desktop Package Requirements
 # ============================================================================ #
 
+netcat-openbsd
 skopeo
+steghide

@@ -32,7 +32,7 @@ alias p="ping"
 pingwait="-w"
 is_mac && pingwait="-W"
 
-alias ping_google="while true; do ping www.google.com && break; sleep 1 || break; done"
+alias ping_google="while true; do ping www.google.com && sleep 1 || break; done"
 alias g=ping_google
 
 # watch_url.pl is in DevOps-Perl-tools repo which should be in $PATH
@@ -125,6 +125,14 @@ tpinggw(){
     tping "$(get_gw)" "$@"
 }
 
+# for trying to find those damn wifi capture portals that disappear but block your internet http proxying
+opengw(){
+    local gateway
+    gateway="$(get_gw)"
+    open "http://$gateway"
+    open "https://$gateway"
+}
+
 port(){
     if [ -z "$2" ]; then
         echo "You must supply a hostname/ip address to test followed by a port number"
@@ -162,7 +170,7 @@ halfopen(){
 
 get_gw(){
     local gw
-    gw="$(netstat -rn | awk '/^default/ {print $2;exit}')"
+    gw="$(netstat -rn | awk '/^default.*\./ {print $2;exit}')"
     if [ -z "$gw" ]; then
         echo "Could not find gateway, no default route! " >&2
         return 1
@@ -340,42 +348,9 @@ rerdp(){
 }
 
 
-vncwho() {
-    netstat -tW |
-    grep ".*:5900 .*:.*" |
-    awk '{a=$5; split(a,b,":"); print b[1]}'
-}
-
-vnc(){
-    if type -P krdc &>/dev/null; then
-        krdc "vnc:/$1" &
-    elif type -P vncviewer &>/dev/null; then
-        vncviewer "$1" &
-    else
-        echo "could not find krdc or vncviewer in \$PATH"
-        return 1
-    fi
-}
-
-revnc(){
-    if [ -z "$1" ]; then
-        echo "You must supply a hostname or ip address to connect to"
-        return 1
-    fi
-    while ! ping -c 1 "$pingwait" 1 "$1" &>/dev/null; do
-        sleep 1
-    done
-    timestamp "machine is up"
-    until vnc "$1"; do
-        sleep 1
-        timestamp "retrying $1"
-    done
-}
-
 # ============================================================================ #
 #                                   L i n u x
 # ============================================================================ #
-
 
 if is_linux; then
 
@@ -393,6 +368,10 @@ fi
 if ! is_mac; then
     return
 fi
+
+dnsservers(){
+    scutil --dns | grep 'nameserver\[[0-9]*\]' | sort -u
+}
 
 flushdns(){
     dscacheutil -flushcache
@@ -513,7 +492,7 @@ checkwifi(){
     [ -z "$wifi_failures" ] && wifi_failures=0
     for((i=1;i<=3;i++)); do
         if ping -c1 -W1 4.2.2.1 >/dev/null; then
-            if [ $wifi_failures -gt 0 ]; then
+            if [ "$wifi_failures" -gt 0 ]; then
                 tstamp "wifi recovered from $wifi_failures failures"
             fi
             wifi_failures=0

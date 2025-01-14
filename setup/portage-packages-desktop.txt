@@ -172,6 +172,7 @@ gvim
 gxmessage
 heartbeat
 hexedit
+#hexyl  # hex viewer - https://github.com/sharkdp/hexyl - requires sudo eselect repository enable dm9pZCAq && sudo emerge --sync dm9pZCAq && sudo emerge sys-apps/hexyl::dm9pZCAq
 honeyd
 hostapd
 hping
@@ -238,6 +239,8 @@ mc
 md5deep
 mdadm
 mdcrack
+media-gfx/exiftool  # view image metadata
+media-gfx/imagemagick
 memdump
 mercurial
 most
@@ -308,9 +311,11 @@ PEAR-PHP_Shell
 perl-doc
 pidgin
 pidgin-sipe
+pigz  # parallel gzip
 pinentry
 piozone
 pipebench
+pipenv
 pipeworks
 pkcrack
 #portsentry

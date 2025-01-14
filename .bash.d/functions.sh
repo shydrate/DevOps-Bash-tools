@@ -89,6 +89,14 @@ pg(){
     grep -v grep
 }
 
+pstg(){
+    # want splitting of options
+    # shellcheck disable=SC2086
+    pstree |
+    grep -5 -i --color=always "$@" |
+    less $LESS
+}
+
 copy_to_clipboard(){
     if is_mac; then
         cat | pbcopy
@@ -166,6 +174,20 @@ typer(){
             type "$x"
         fi
     done
+}
+
+findup(){
+    local arg="$1"
+    current_dir="${PWD:-$(pwd)}"
+    while [ "$current_dir" != "" ]; do
+        if [ -e "$current_dir/$arg" ]; then
+            echo "$current_dir/$arg"
+            return 0
+        fi
+        current_dir="${current_dir%/*}"
+    done
+    echo "Not found in above path: $arg" >&2
+    return 1
 }
 
 lld(){
@@ -495,23 +517,24 @@ readlink(){
     fi
 }
 
-# see also readlink (beware differs between Linux and Mac)
-# this works on imaginary paths
 abspath(){
-    if [ -z "$1" ]; then
-        echo "NO PATH GIVEN!"
-        return 1
-    fi
-    # shellcheck disable=SC2001
-    sed 's@^\./@'"$PWD"'/@;
-         s@^\([^\./]\)@'"$PWD"'/\1@;
-         s@^\.\./@'"${PWD%/*}"'/@;
-         s@/../@/@g;
-         s@/\./@/@g;
-         s@\(.*\/?\)\.\./?$@\1/@;
-         s@//@/@g;
-         s@/$@@;' <<< "$1"
+    readlink --canonicalize-missing "$1"
 }
+#abspath(){
+#    if [ -z "$1" ]; then
+#        echo "NO PATH GIVEN!"
+#        return 1
+#    fi
+#    # shellcheck disable=SC2001
+#    sed 's@^\./@'"$PWD"'/@;
+#         s@^\([^\./]\)@'"$PWD"'/\1@;
+#         s@^\.\./@'"${PWD%/*}"'/@;
+#         s@/../@/@g;
+#         s@/\./@/@g;
+#         s@\(.*\/?\)\.\./?$@\1/@;
+#         s@//@/@g;
+#         s@/$@@;' <<< "$1"
+#}
 
 wcbash(){
     # $github defined in aliases.sh

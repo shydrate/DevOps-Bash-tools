@@ -15,8 +15,17 @@
 
 # Files to link to $HOME, one per line
 
+.editorconfig
+.envrc
+.envrc-python
 .gitconfig
 .gitignore
+# top-level .mdlrc is cumulative and can mask issues in project repos
+# instead use an .mdlrc and .mdl.rb in each repo individually
+#.mdlrc
+#.mdl.rb
+# home dir is too heavy for this right now
+#.pre-commit-config.yaml
 .pylintrc
 configs/.ansible.cfg
 configs/.athenacli/athenaclirc
@@ -27,6 +36,7 @@ configs/.Codefresh/cli-config/config.yaml
 configs/.config/flake8
 configs/.config/htop/htoprc
 configs/.config/pycodestyle
+configs/.config/terminalizer/config.yml
 configs/.config/yamllint/config
 configs/.customize_environment
 configs/.editorconfig
@@ -34,7 +44,6 @@ configs/.gemrc
 configs/.git-templates/git-secrets/hooks/*
 configs/.grype.yaml
 configs/.inputrc
-configs/.mdlrc
 configs/.my.cnf
 configs/.perlcriticrc
 configs/.perlcritic_forbidden_modules

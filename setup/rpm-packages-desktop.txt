@@ -68,6 +68,7 @@ fzf
 #games-misc/fortune-mod
 gdb
 geoip
+gimp
 #git # in rpm-packages.txt
 git-core
 gitk
@@ -78,8 +79,10 @@ gt5
 gvim
 heartbeat
 hexedit
+hexyl  # hex viewer - https://github.com/sharkdp/hexyl
 honeyd
 hostapd
+ImageMagick
 incron
 iozone
 iotop
@@ -143,9 +146,12 @@ pastebinit
 pdfgrep
 PEAR-PHP_Shell
 perl-doc
+perl-Image-ExifTool
 pidgin
 pidgin-sipe
+pigz  # parallel gzip
 piozone
+pipenv
 pound
 psh
 psmisc  # for pstree
@@ -164,7 +170,7 @@ router-audit-tool
 rpm-build
 rpmlint
 sbd
-screen
+#screen  # removed in favour of tmux :'-(
 sguil-client
 sguil-sensor
 sguil-server

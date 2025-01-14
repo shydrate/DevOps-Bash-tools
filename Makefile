@@ -15,15 +15,39 @@ include Makefile.in
 
 REPO := HariSekhon/DevOps-Bash-tools
 
-#CODE_FILES := $(shell find . -type f -name '*.sh' -o -type f -name '.bash*' | sort)
-CODE_FILES := $(shell git ls-files | grep -E -e '\.sh$$' -e '\.bash[^/]*$$' -e '\.groovy$$' | sort)
-
 CONF_FILES := $(shell sed "s/\#.*//; /^[[:space:]]*$$/d" setup/files.txt)
+
+#CODE_FILES := $(shell find . -type f -name '*.sh' -o -type f -name '.bash*' | sort)
+#CODE_FILES := $(shell git ls-files | grep -E -e '\.sh$$' -e '\.bash[^/]*$$' -e '\.groovy$$' | sort)
+CODE_FILES := $(shell \
+	if type git >/dev/null 2>&1; then \
+		git ls-files | \
+		grep -E -e '\.sh$$' -e '\.bash[^/]*$$' -e '\.groovy$$' | \
+		sort | \
+		while read -r filepath; do \
+			test -f "$$filepath" || continue; \
+			test -d "$$filepath" && continue; \
+			test -L "$$filepath" && continue; \
+			echo "$$filepath"; \
+		done; \
+	else \
+		find . -type f; \
+	fi \
+)
+
 
 BASH_PROFILE_FILES := $(shell echo .bashrc .bash_profile .bash.d/*.sh)
 
 #.PHONY: *
 
+CURRENT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+TRUNK_BRANCH := $(shell git symbolic-ref refs/remotes/origin/HEAD | sed 's|.*/||')
+
+DEFAULT_TITLE := [GD-00] - merge $(CURRENT_BRANCH) to $(TRUNK_BRANCH)
+
+title ?= $(DEFAULT_TITLE)
+
+# ===================
 define MAKEFILE_USAGE
 
   Repo specific options:
@@ -73,7 +97,8 @@ build:
 	@echo ================
 	@$(MAKE) git-summary
 	@$(MAKE) init
-	@$(MAKE) system-packages aws github-cli
+	@$(MAKE) system-packages
+	@$(MAKE) aws github-cli
 
 .PHONY: init
 init: git
@@ -82,8 +107,12 @@ init: git
 	@echo
 
 .PHONY: install
-install: build link aws gcp github-cli pip
-	@:
+install: build
+	@$(MAKE) link
+	@$(MAKE) aws
+	@$(MAKE) gcp
+	@$(MAKE) github-cli
+	@$(MAKE) pip
 
 .PHONY: uninstall
 uninstall: unlink
@@ -105,9 +134,17 @@ unlink:
 mac-desktop: desktop
 	@setup/mac_desktop.sh
 
+.PHONY: mac
+mac: mac-desktop
+	@:
+
 .PHONY: linux-desktop
 linux-desktop: desktop
 	@setup/linux_desktop.sh
+
+.PHONY: linux
+linux: linux-desktop
+	@:
 
 .PHONY:
 ccmenu:
@@ -158,6 +195,8 @@ homebrew: system-packages brew
 
 .PHONY: brew
 brew:
+	which -a brew || install/install_homebrew.sh
+	which -a wget || brew install wget
 	NO_FAIL=1 NO_UPDATE=1 $(BASH_TOOLS)/packages/brew_install_packages_if_absent.sh setup/brew-packages-desktop.txt
 	NO_FAIL=1 NO_UPDATE=1 CASK=1 $(BASH_TOOLS)/packages/brew_install_packages_if_absent.sh setup/brew-packages-desktop-casks.txt
 	@# doesn't pass the packages correctly yet
@@ -211,9 +250,19 @@ npm-desktop: npm
 
 .PHONY: aws
 aws: system-packages python-version
-	@if ! command -v aws; then setup/install_aws_cli.sh; fi
+	@if ! command -v aws; then install/install_aws_cli.sh; fi
+#    @$(MAKE) codecommit
+#
+#.PHONY: codecommit
+#codecommit:
 	@# needed for github_mirror_repos_to_aws_codecommit.sh and dependent GitHub Actions workflows
-	@grep '^git-remote-codecommit' requirements.txt | PIP=$(PIP) ./python/python_pip_install_if_absent.sh || :
+	@if uname -s | grep -q Darwin; then \
+		xargs(){ \
+			gxargs "$$@"; \
+		}; \
+	fi; \
+	grep '^git-remote-codecommit' requirements.txt | \
+	PIP=$(PIP) xargs --no-run-if-empty ./python/python_pip_install_if_absent.sh || :
 
 .PHONY: aws-shell
 aws-shell:
@@ -222,7 +271,7 @@ aws-shell:
 
 .PHONY: azure
 azure: system-packages
-	@setup/install_azure_cli.sh
+	@install/install_azure_cli.sh
 
 .PHONY: azure-shell
 azure-shell: link
@@ -230,8 +279,8 @@ azure-shell: link
 
 .PHONY: gcp
 gcp: system-packages
-	@./setup/install_gcloud_sdk.sh
-	@./setup/install_cloud_sql_proxy.sh
+	@./install/install_gcloud_sdk.sh
+	@./install/install_cloud_sql_proxy.sh
 
 .PHONY: gcp-shell
 gcp-shell:
@@ -243,14 +292,14 @@ github-cli: ~/bin/gh
 	@:
 
 ~/bin/gh:
-	setup/install_github_cli.sh
+	install/install_github_cli.sh
 
 .PHONY:
 digital-ocean: ~/bin/doctl
 	@:
 
 ~/bin/doctl:
-	setup/install_doctl.sh
+	install/install_doctl.sh
 
 .PHONY: kubernetes
 kubernetes: kubectl kustomize
@@ -265,21 +314,21 @@ kubectl: ~/bin/kubectl
 	@:
 
 ~/bin/kubectl:
-	setup/install_kubectl.sh
+	install/install_kubectl.sh
 
 .PHONY: kustomize
 kustomize: ~/bin/kustomize
 	@:
 
 ~/bin/kustomize:
-	setup/install_kustomize.sh
+	install/install_kustomize.sh
 
 .PHONY: vim
 vim: ~/.vim/bundle/Vundle.vim
 	@:
 
 ~/.vim/bundle/Vundle.vim:
-	setup/install_vundle.sh
+	install/install_vundle.sh
 
 .PHONY: tmux
 tmux: ~/.tmux/plugins/tpm ~/.tmux/plugins/kube.tmux
@@ -339,3 +388,57 @@ pip-mapping: pipreqs-mapping
 .PHONY: status-page
 status-page:
 	./cicd/generate_status_page.sh; . .bash.d/git.sh; gitu STATUS.md
+
+.PHONY: dialog-install
+dialog-install:
+	install/install_packages.sh dialog
+
+# Raise Pull Requests from the command line like this:
+#
+#	You need GitHub CLI installed ('make' installs it for you) and authenticated eg.:
+#
+#		gh auth login
+#
+#		# https://cli.github.com/manual/gh_auth_login
+#
+#	Example:
+#
+#		make pr title="Hari code to avoid clicking"
+#
+.PHONY: pr
+pr: dialog-install
+	git push --set-upstream origin "$(CURRENT_BRANCH)"
+	if [ -z "$$GITHUB_PULL_REQUEST_TITLE" ]; then \
+		if [ "$(title)" = "$(DEFAULT_TITLE)" ]; then \
+			GITHUB_PULL_REQUEST_TITLE="$$(dialog --inputbox "Pull Request Title:" 8 40 "$(DEFAULT_TITLE)" 3>&1 1>&2 2>&3)"; \
+		else \
+			GITHUB_PULL_REQUEST_TITLE="$(title)"; \
+		fi; \
+	fi; \
+	export GITHUB_PULL_REQUEST_TITLE; \
+	github_pull_request_create.sh \
+		"$(REPO)" \
+		"$(CURRENT_BRANCH)" \
+		"$(TRUNK_BRANCH)"
+
+# raise a PR in one command with Auto-Merge enabled - use this for trivial PRs of low / no impact like MkDocs updates
+.PHONY: auto-pr
+auto-pr: update
+	@# - if GITHUB_PULL_REQUEST_AUTO_MERGE=true then marks the PR for auto-merge once it is approved and passes pre-requisite checks
+	@# - if GITHUB_PULL_REQUEST_SQUASH=true while GITHUB_PULL_REQUEST_AUTO_MERGE=true then it marks
+	@#   the PR's auto-merge to be done using a squash commit to avoid any CLI prompt for how to merge it
+	GITHUB_PULL_REQUEST_AUTO_MERGE=true \
+	GITHUB_PULL_REQUEST_SQUASH=true \
+	$(MAKE) pr
+
+# Example:
+#
+#	make autopr title="Documented something"
+#
+.PHONY: autopr
+autopr: auto-pr
+	@:
+
+.PHONY: sync
+sync:
+	sync_configs_to_adjacent_repos.sh

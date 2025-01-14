@@ -7,6 +7,7 @@
 
 anaconda
 atom
+barrier
 ccmenu
 codeship/taps/jet
 docker
@@ -15,13 +16,17 @@ docker
 #firefox-developer-edition
 google-chrome
 google-cloud-sdk
+intellij-idea-ce
 keepassxc
 keka
 minikube
 minishift
+multipass  # instant Ubuntu VMs
 podman
 postman
 powershell
 spotify
 vagrant
 virtualbox
+vnc-viewer
+wireshark  # installs GUI, without cask only install CLI utils like tshark

@@ -32,7 +32,7 @@ Pluto is run per directory as a workaround for this recursion issue:
 
 Parallelized for performance, with Helm support enabled.
 
-Requires 'kustomize' and 'pluto' binaries to be in the \$PATH
+Requires 'kustomize' and 'pluto' binaries to be in the \$PATH - will attempt to install them if not found
 "
 
 # used by usage() in lib/utils.sh
@@ -46,10 +46,16 @@ max_args 1 "$@"
 
 dir="${1:-.}"
 
+for x in kustomize pluto; do
+    if ! type -P "$x" &>/dev/null; then
+        "$srcdir/../install_$x.sh"
+    fi
+done
+
 pluto_detect_kustomize_materialize(){
     kustomization_path="$1"
-    echo "========================================"
-    echo "$kustomization_path"
+    hr
+    timestamp "$kustomization_path"
     pushd "$(dirname "$kustomization_path")" >/dev/null
     #if [[ "$kustomization" =~ ^eks- ]]; then
     #    echo "Skipping $kustomization"
@@ -57,12 +63,14 @@ pluto_detect_kustomize_materialize(){
     #    continue
     #fi
     kustomize build --enable-helm > "kustomization.materialized.yaml"
-    echo "Materialized YAML -> $PWD/kustomization.materialized.yaml"
+    timestamp "Materialized Kustomize YAML -> $PWD/kustomization.materialized.yaml"
     pluto detect-files -d .
     popd >/dev/null
     echo >&2
 }
 export -f pluto_detect_kustomize_materialize
+export -f hr
+export -f timestamp
 
 find "$dir" -name kustomization.yaml |
 while read -r kustomization_path; do

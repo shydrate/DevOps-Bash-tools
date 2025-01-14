@@ -14,7 +14,7 @@
 #
 
 # ============================================================================ #
-#                       K u b e r n e t e s   D i r e n v
+#                       K u b e r n e t e s   D i r E n v
 # ============================================================================ #
 
 # https://direnv.net/man/direnv-stdlib.1.html
@@ -76,27 +76,34 @@ kube_context(){
         export KUBECONFIG="$tmpdir/config.${EUID:-${UID:-$(id -u)}}.$$.$epoch"
 
         # load your real kube config to isolated staging area to source the context info
-        if [ -f "$original_kubeconfig" ]; then
-            cp -- "$original_kubeconfig" "$KUBECONFIG"
-        elif [ -f "$default_kubeconfig" ]; then
-            cp -- "$default_kubeconfig" "$KUBECONFIG"
-        elif [ -f "$PWD/.kube/config" ]; then
-            cp -- "$PWD/.kube/config" "$KUBECONFIG"
-        elif [ -f "/etc/rancher/k3s/k3s.yaml" ]; then
-            cp -- "/etc/rancher/k3s/k3s.yaml" "$KUBECONFIG"
-        else
-            echo "WARNING: failed to find one of:
-
+        local src_kubeconfig=""
+        local kubeconfig_source_locations="
             $original_kubeconfig
             $default_kubeconfig
             $PWD/.kube/config
-            /etc/rancher/k3s/k3s.yaml
-        " >&2
+            /etc/rancher/k3s/k3s.yaml"
+        for kubeconfig in $kubeconfig_source_locations; do
+            if [ -f "$kubeconfig" ]; then
+                src_kubeconfig="$kubeconfig"
+                break
+            fi
+        done
+        if [ -n "$src_kubeconfig" ]; then
+            if [ "$src_kubeconfig" != "$KUBECONFIG" ]; then
+                cp -f -- "$src_kubeconfig" "$KUBECONFIG"
+            fi
+        else
+            if [[ "$PWD" =~ k8|kube ]]; then
+                echo "WARNING: failed to find one of:" >&2
+                echo "$kubeconfig_source_locations" | sort -u >&2
+                echo >&2
+            fi
         fi
 
-        # race condition - kubectl config get-contexts fails to find the context and switch in many runs without this sleep
+        # race condition - 'kubectl config get-contexts' fails to find the context and switch in many runs without this sleep
         context_found=0
-        for ((i=0;i<10;i++)); do
+        local i
+        for ((i=0; i < 5; i++)); do
             # surprisingly unreliable - if kubectl config get-contexts -o name | grep -Fxq "$context" can miss even after these succeed
             #if [ -s "$KUBECONFIG" ]; then
             #if cmp --quiet "$from_kubeconfig" "$KUBECONFIG"; then
@@ -111,9 +118,11 @@ kube_context(){
         #if kubectl config get-contexts -o name 2>/dev/null | grep -Fxq "$context"; then
         if [ "$context_found" = 1 ]; then
             kubectl config use-context "$CONTEXT"
+            echo
 
             if [ -n "${namespace:-}" ]; then
                 kubectl config set-context "$context" --namespace "$namespace"
+                echo
             fi
         fi
     fi
@@ -121,8 +130,27 @@ kube_context(){
 
 gke_kube_context(){
     local CONTEXT
-    export CLOUDSDK_CONTAINER_CLUSTER="${CLOUDSDK_CORE_PROJECT}-${CLOUDSDK_COMPUTE_REGION}"
+    for _ in CLOUDSDK_CORE_PROJECT CLOUDSDK_COMPUTE_REGION CLOUDSDK_CONTAINER_CLUSTER; do
+        if [ -z "${!_}" ]; then
+            echo "WARNING: \$$_ is not set" >&2
+        fi
+    done
+    # if CLOUDSDK_CONTAINER_CLUSTER and it's generated as a naming convention such as "${CLOUDSDK_CORE_PROJECT}-${CLOUDSDK_COMPUTE_REGION}"
+    #export CLOUDSDK_CONTAINER_CLUSTER="${CLOUDSDK_CONTAINER_CLUSTER:-${CLOUDSDK_CORE_PROJECT}-${CLOUDSDK_COMPUTE_REGION}}"
+
+    # the context naming convention for GKE clusters imported via:
+    #
+    #   gcloud container clusters get-credentials "$cluster" --zone "$zone"
+    #
+    # use gke_kube_creds.sh to auto-populate this for all GKE clusters in the current project
+    # and gcp_foreach_project.sh to do this for all GCP projects. Both scripts are found here:
+    #
+    #   https://github.com/HariSekhon/DevOps-Bash-tools
+    #
+    # should be using a regional cluster
     CONTEXT="gke_${CLOUDSDK_CORE_PROJECT}_${CLOUDSDK_COMPUTE_REGION}_${CLOUDSDK_CONTAINER_CLUSTER}"
+    # not a zonal cluster
+    #CONTEXT="gke_${CLOUDSDK_CORE_PROJECT}_${CLOUDSDK_COMPUTE_ZONE}_${CLOUDSDK_CONTAINER_CLUSTER}"
     kube_context "$CONTEXT" "${NAMESPACE:-}"
 }
 

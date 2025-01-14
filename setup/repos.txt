@@ -27,6 +27,9 @@
 # ":local_dir" is optional in case you want to shorten the local directory name, lowercase it or change it for any reason such as daily convenience
 #
 
+HariSekhon:harisekhon
+Knowledge-Base:knowledge
+Environments:environments
 # order repos by dependent submodule repos first
 GitHub-Actions:github-actions
 GitHub-Actions-Contexts:contexts
@@ -35,7 +38,8 @@ SQL-scripts:sql
 SQL-keywords:sql-keywords
 Kubernetes-configs:k8s
 Terraform:terraform
-Packer-templates:pack
+Packer:pack
+Vagrant-templates:vag
 Templates:templates
 TeamCity-CI:teamcity
 DevOps-Bash-tools:bash-tools
@@ -53,6 +57,7 @@ Spotify-tools:spotify-tools
 Spotify-Playlists:playlists
 #Spark-Apps:spark-apps
 Template-repo:trepo
+TamperMonkey:tampermonkey
 
 HAProxy-configs:haproxy-configs
 

@@ -60,6 +60,8 @@ if [ -z "${HOME:-}" ]; then
 fi
 
 bash_tools="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# needed to inherit by things like vim script execution from within files using libraries rooted at this location
+export bash_tools
 
 # shellcheck disable=SC1090,SC1091
 . "$bash_tools/.bash.d/os_detection.sh"
@@ -103,7 +105,8 @@ histrmlast(){ history -d "$(history | tail -n 2 | head -n 1 | awk '{print $1}')"
 export HISTTIMEFORMAT="%F %T  "
 
 # stop logging duplicate successive commands to history
-HISTCONTROL=ignoredups:ignorespace
+#HISTCONTROL=ignoredups:ignorespace
+HISTCONTROL=ignoredups
 
 # Neat trick "[ \t]*" to exclude any command by just prefixing it with a space. Fast way of going stealth for pw entering on cli
 # & here means any duplicate patterns, others are simple things like built-ins and ls and stuff you don't need history for
